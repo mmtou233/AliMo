@@ -1,6 +1,6 @@
-id=alist
+id=AlistForMagisk
 name=alist
 version=0
 versionCode=1
-author=wajaran
-description=挂载存储到云端
+author=mmtou233
+description=地址：http://localhost:5244 初始密码：123456789
