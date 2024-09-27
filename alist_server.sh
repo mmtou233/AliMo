@@ -17,5 +17,5 @@ if [ -z "$(pgrep alist)" ]; then
         echo "[$(date "+%Y-%m-%d %H:%M:%S")] 等待 alist 完成下载。。。" >> "${MODDIR_C}/log.txt"
     fi
 #else
-    #echo "[$(date "+%Y-%m-%d %H:%M:%S")] alist 正常运行中。。。" >> "${MODDIR_C}/log.txt"
+    #echo "[$(date "+%Y-%m-%d %H:%M:%S")] alist 正常运行中。。。pid：$(pgrep alist)" >> "${MODDIR_C}/log.txt"
 fi
