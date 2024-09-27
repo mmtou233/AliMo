@@ -1,6 +1,6 @@
-id=AlistForMagisk
-name=alist
-version=0
-versionCode=1
+id=AliMo
+name=AliMo
+version=v0.1.0
+versionCode=10
 author=mmtou233
-description=地址：http://localhost:5244 初始密码：123456789
+description=alist 版本：0。
