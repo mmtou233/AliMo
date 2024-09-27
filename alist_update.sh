@@ -2,8 +2,10 @@
 
 # 获取当前脚本所在目录
 MODDIR="$(dirname "$(readlink -f "$0")")"
+MODDIR_C="/data/adb/AliMo"
+export PATH=/debug_ramdisk/.magisk/busybox:$PATH
 
-echo "[$(date "+%Y-%m-%d %H:%M:%S")] 当前脚本所在目录：${MODDIR}" >> "${MODDIR}/log.txt"
+echo "[$(date "+%Y-%m-%d %H:%M:%S")] 当前脚本所在目录：${MODDIR}" >> "${MODDIR_C}/log.txt"
 
 # busybox的路径地址
 BUSYBOX_PATH="/data/adb/magisk/busybox:/data/adb/ksu/bin/busybox:/data/adb/ap/bin/busybox"
@@ -31,7 +33,7 @@ get_latest_version() {
     
     if [ -z "${url_version}" ]; then
     
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 远程版本号获取失败，开始使用备用方案" >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 远程版本号获取失败，开始使用备用方案" >> "${MODDIR_C}/log.txt"
         
         url_version="$(curl -sL -o /dev/null -w '%{url_effective}' "https://gh.con.sh/https://github.com/alist-org/alist/releases/latest" | grep 'tag' | sed -E 's/.*tag\/(.*)/\1/')"
     fi
@@ -39,9 +41,9 @@ get_latest_version() {
 
 # 获取本地版本号
 # 2>/dev/null：这是一个重定向操作，它将命令的标准错误（文件描述符2）重定向到 /dev/null ，这意味着任何错误消息都会被丢弃，你不会在终端看到它们。
-# || echo 0：这是一个条件操作符。如果前面的命令（即`${MODDIR}/bin/alist -v`）执行失败，则执行 echo 0
+# || echo 0：这是一个条件操作符。如果前面的命令（即`${MODDIR_C}/bin/alist -v`）执行失败，则执行 echo 0
 get_version() {
-    version="$("${MODDIR}/bin/alist" version  2>/dev/null | grep '^Version:' | sed -E 's/.*(v.+)/\1/')"
+    version="$("${MODDIR_C}/bin/alist" version  2>/dev/null | grep '^Version:' | sed -E 's/.*(v.+)/\1/')"
     if [ -z "${version}" ]; then
     version=0
     fi
@@ -56,7 +58,7 @@ get_version() {
 # >/dev/null: 将ping命令的标准输出重定向到/dev/null，即丢弃输出，不显示在屏幕上。
 check_connectivity() {
     if ! ping -q -c 1 -W 1 www.baidu.com >/dev/null; then
-        sleep 5
+        /system/bin/sleep 5
         return 1
     fi
     return 0
@@ -74,7 +76,7 @@ find_busybox() {
         if [ -f "$path" ]; then
             BUSYBOX="$path"
             
-            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 成功获取busybox路径：${BUSYBOX}" >> "${MODDIR}/log.txt"
+            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 成功获取busybox路径：${BUSYBOX}" >> "${MODDIR_C}/log.txt"
             
             break
         fi
@@ -87,14 +89,14 @@ find_busybox() {
 # -ge: 大于等于 -le: 小于等于
 # -eq: 等于      -ne: 不等于
 delete_log() {
-    log_size=$(wc -c < "${MODDIR}/log.txt")
+    log_size=$(wc -c < "${MODDIR_C}/log.txt")
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 当前日志文件大小为：$(echo "scale=2; $log_size / 1024" | bc)KB" >> "${MODDIR}/log.txt"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 当前日志文件大小为：$(echo "scale=2; $log_size / 1024" | bc)KB" >> "${MODDIR_C}/log.txt"
     
     if [ "$log_size" -gt 1048576 ]; then
-        rm "${MODDIR}/log.txt"
+        rm "${MODDIR_C}/log.txt"
         
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 日志文件（大于1MB）重置完成" >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 日志文件（大于1MB）重置完成" >> "${MODDIR_C}/log.txt"
         
     fi
 }
@@ -102,65 +104,90 @@ delete_log() {
 # 下载并解压更新包
 download_and_extract() {
     alist_file="alist-android-arm64.tar.gz"
-    mkdir -p "${MODDIR}/tmp"
-    mkdir -m 755 -p "${MODDIR}/bin"
+    mkdir -p "${MODDIR_C}/tmp"
+    mkdir -m 755 -p "${MODDIR_C}/bin"
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已创建临时文件夹tmp和二进制文件夹bin" >> "${MODDIR}/log.txt"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已创建临时文件夹tmp和二进制文件夹bin" >> "${MODDIR_C}/log.txt"
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 开始下载最新版" >> "${MODDIR}/log.txt"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 开始下载最新版" >> "${MODDIR_C}/log.txt"
     
-    "${BUSYBOX}" wget -O "${MODDIR}/tmp/${alist_file}" "https://gh.con.sh/https://github.com/alist-org/alist/releases/download/${url_version}/${alist_file}" &>>"${MODDIR}/log.txt"
+    wget -O "${MODDIR_C}/tmp/${alist_file}" "https://gh.con.sh/https://github.com/alist-org/alist/releases/download/${url_version}/${alist_file}" >>"${MODDIR_C}/log.txt" 2>&1
     
-    chmod 755 "${MODDIR}/tmp/${alist_file}"
+    if [ ! -e "${MODDIR_C}/tmp/${alist_file}" ]; then
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 下载完成，已授予 alist 压缩包 755 权限" >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 下载失败，使用备用下载链接" >> "${MODDIR_C}/log.txt"
     
-    "${BUSYBOX}" tar -xzf "${MODDIR}/tmp/${alist_file}" -C "${MODDIR}/tmp" &>/dev/null
-    mv -f "${MODDIR}/tmp/alist" "${MODDIR}/bin/alist"
+        wget -O "${MODDIR_C}/tmp/${alist_file}" "https://mirror.ghproxy.com/https://github.com/alist-org/alist/releases/download/${url_version}/${alist_file}" >>"${MODDIR_C}/log.txt" 2>&1
+        if [ ! -e "${MODDIR_C}/tmp/${alist_file}" ]; then
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 下载失败，明天再来试试吧。" >> "${MODDIR_C}/log.txt"
+        fi
+    else
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已将 alist 解压并移动到指定目录" >> "${MODDIR}/log.txt"
+    chmod 755 "${MODDIR_C}/tmp/${alist_file}"
     
-    chmod 755 "${MODDIR}/bin/alist"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 下载完成，已授予 alist 压缩包 755 权限" >> "${MODDIR_C}/log.txt"
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已授予 alist 可执行权限" >> "${MODDIR}/log.txt"
+    tar -xzf "${MODDIR_C}/tmp/${alist_file}" -C "${MODDIR_C}/tmp" &>/dev/null
+    mv -f "${MODDIR_C}/tmp/alist" "${MODDIR_C}/bin/alist"
     
-    rm -r "${MODDIR}/tmp"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已将 alist 解压并移动到指定目录" >> "${MODDIR_C}/log.txt"
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 临时文件已清除" >> "${MODDIR}/log.txt"
+    chmod 755 "${MODDIR_C}/bin/alist"
+    
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已授予 alist 可执行权限" >> "${MODDIR_C}/log.txt"
+    
+    fi
+    
+    rm -r "${MODDIR_C}/tmp"
+    
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 临时文件已清除" >> "${MODDIR_C}/log.txt"
     
 }
 
 # 比较版本号函数
 # $2 是更新的版本则为真，否则为假
 version_ge() {
-    test "$(echo -e "$1\n$2" | sort -V | tail -n 1)" = "$2"
+    version_big="$(echo -e "$1\n$2" | /system/bin/sort -V | tail -n 1)"
+    #echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更大的版本号：${version_big}，$1，$2" >> "${MODDIR_C}/log.txt"
+    test "${version_big}" = "$2"
+}
+
+# 更新版本号
+update_mpv(){
+
+    if [[ $MODDIR == *_update* ]]; then
+    MODDIR_R=${MODDIR//_update/}
+    sed -i "s/alist 版本：[0-9,.,-,_,a-z,A-Z]*/alist 版本：${version}/g" "${MODDIR_R}/module.prop"
+    fi
+    
+    sed -i "s/alist 版本：[0-9,.,-,_,a-z,A-Z]*/alist 版本：${version}/g" "${MODDIR}/module.prop"
 }
 
 # 更新列表并重启进程
 update_and_restart() {
     get_version
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新后本地版本：${version}" >> "${MODDIR}/log.txt"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新后本地版本：${version}" >> "${MODDIR_C}/log.txt"
     
-    sed -i "s/^version=.*/version=${version}/g" "${MODDIR}/module.prop"
+    update_mpv
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已更新 module.prop 文件" >> "${MODDIR}/log.txt"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已更新 module.prop 文件" >> "${MODDIR_C}/log.txt"
     
     if [ -n "$(pgrep 'alist')" ]; then
         pkill alist 
         
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已结束 alist 进程" >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已结束 alist 进程" >> "${MODDIR_C}/log.txt"
         
     fi
 
-    $MODDIR/bin/alist server >/dev/null 2>&1 &
-    
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 启动 alist 进程完毕" >> "${MODDIR}/log.txt"
+    $MODDIR_C/bin/alist server --data "${MODDIR_C}/data" >>"${MODDIR_C}/log.txt" 2>&1 &
+    /system/bin/sleep 10
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 启动 alist 进程完毕" >> "${MODDIR_C}/log.txt"
 }
 
 # 更新失败
 handle_failed_update() {
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新失败！" >> "${MODDIR}/log.txt"
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新失败！" >> "${MODDIR_C}/log.txt"
 }
 
 # 更新检测
@@ -172,7 +199,7 @@ check_and_update_version() {
         # -n: 检查字符串长度是否非零
         if [ -n "$url_version" ]; then
         
-            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 远程 alist 最新版：${url_version}" >> "${MODDIR}/log.txt"
+            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 远程 alist 最新版：${url_version}" >> "${MODDIR_C}/log.txt"
     
             break
         fi
@@ -180,35 +207,44 @@ check_and_update_version() {
         ((retry_times++))
         if [ $((retry_times % 60)) -eq 0 ]; then
         
-            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 获取URL版本号失败..." >> "${MODDIR}/log.txt"
+            echo "[$(date "+%Y-%m-%d %H:%M:%S")] 获取URL版本号失败..." >> "${MODDIR_C}/log.txt"
             
         fi
 
-        sleep 30m
+        /system/bin/sleep 30m
     done
  
-    if [ ! -x "${MODDIR}/bin/alist" ]; then
+    if [ ! -x "${MODDIR_C}/bin/alist" ]; then
     
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 不存在本地 alist ，从远程链接下载。。。" >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 不存在本地 alist ，从远程链接下载。。。" >> "${MODDIR_C}/log.txt"
         
         download_and_extract
-        update_and_restart
-        ${MODDIR}/bin/alist admin set 123456789 &>/dev/null
         
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 初始密码已重置为: 123456789" >> "${MODDIR}/log.txt"
+        update_and_restart
+        
+        pkill alist
+        
+        ${MODDIR_C}/bin/alist admin set 123456789 --data "${MODDIR_C}/data" >/dev/null 2>> "${MODDIR_C}/log.txt"
+        
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 初始密码已重置为: 123456789" >> "${MODDIR_C}/log.txt"
+        
+        update_and_restart
         
         return
     fi
     
     get_version
+
     if version_ge "${url_version}" "${version}"; then
     
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已是最新版本：${version}" >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已是最新版本：${version}" >> "${MODDIR_C}/log.txt"
         
-        sed -i "s/^version=.*/version=${version}/g" "${MODDIR}/module.prop"
+        update_mpv
+        
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 已更新 module.prop 文件" >> "${MODDIR_C}/log.txt"
     else
     
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] ${version}，更新中..." >> "${MODDIR}/log.txt"
+        echo "[$(date "+%Y-%m-%d %H:%M:%S")] ${version}，更新中..." >> "${MODDIR_C}/log.txt"
         
         download_and_extract
         
@@ -216,7 +252,7 @@ check_and_update_version() {
         attempt=0  # 当前重试次数
 
         while [ $attempt -le $max_attempts ]; do
-            sleep 10s
+            /system/bin/sleep 10s
             get_version
             if [[ "${url_version}" == "${version}" ]]; then
                 update_and_restart
@@ -228,7 +264,7 @@ check_and_update_version() {
                     break
                 fi
                 
-                echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新失败，正在重试（当前重试次数：${attempt} 次）。。。" >> "${MODDIR}/log.txt"
+                echo "[$(date "+%Y-%m-%d %H:%M:%S")] 更新失败，正在重试（当前重试次数：${attempt} 次）。。。" >> "${MODDIR_C}/log.txt"
                 
                 download_and_extract
             fi
@@ -239,19 +275,17 @@ check_and_update_version() {
 # 查找并设置busybox路径
 find_busybox
 
-while true; do
-    delete_log
-    if ! check_connectivity; then
-        echo "[$(date "+%Y-%m-%d %H:%M:%S")] 网络异常，5s 后重试" >> "${MODDIR}/log.txt"
-        
-        sleep 5s
-        continue
-    fi
-    check_and_update_version
+delete_log
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 当前版本为：${version} 定时更新服务正常运行。。。" >> "${MODDIR}/log.txt"
+if ! check_connectivity; then
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 网络异常，5s 后重试" >> "${MODDIR_C}/log.txt"
+    /system/bin/sleep 5s
+    continue
+fi
+
+echo "[$(date "+%Y-%m-%d %H:%M:%S")] 开始检查更新。。。" >> "${MODDIR_C}/log.txt"
     
-    sleep 24h
+check_and_update_version
     
-    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 开始检查更新。。。" >> "${MODDIR}/log.txt"
-done
+    echo "[$(date "+%Y-%m-%d %H:%M:%S")] 当前版本为：${version} 定时更新服务正常运行。。。" >> "${MODDIR_C}/log.txt"
+    
