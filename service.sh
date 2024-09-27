@@ -41,8 +41,8 @@ fi
 chmod 755 "$MODDIR/alist_server.sh"
 chmod 755 "$MODDIR/alist_update.sh"
 
-echo "* * * * * $MODDIR/alist_server.sh" > "/data/adb/crond/root"
-echo "0 4 * * * $MODDIR/alist_update.sh" >> "/data/adb/crond/root"
+echo "* * * * * sh $MODDIR/alist_server.sh" > "/data/adb/crond/root"
+echo "0 4 * * * sh $MODDIR/alist_update.sh" >> "/data/adb/crond/root"
 if [ -n "$(pgrep crond)" ]; then
     pkill crond
 fi
